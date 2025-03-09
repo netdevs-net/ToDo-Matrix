@@ -1,0 +1,57 @@
+##
+# Optimized NGINX Configuration for todo.netdevs.net
+##
+
+
+server { # managed by Certbot;
+
+    server_name todo.netdev.net;
+    
+    # Reverse Proxy for Main App
+    location / {
+        proxy_pass http://127.0.0.1:5531;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host $host;
+        client_max_body_size 100M;
+    }
+
+
+
+    listen [::]:443 ssl ipv6only=on; # managed by Certbot
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/todo.netdevs.net/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/todo.netdevs.net/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+}
+
+
+server {
+
+    listen 80;
+    listen [::]:80;
+
+    server_name todo.netdev.net;
+    if ($host = todo.netdev.net) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+    return 404; # managed by Certbot
+
+}
+
+
+#	Unused CloudFlare Origin Certificates. 
+# ---------- Might test for speed sometime. 
+# 
+#    ssl_certificate /etc/ssl/cloudflare/cloudflare-origin.pem;
+#    ssl_certificate_key /etc/ssl/cloudflare/cloudflare-origin.key;
+#
+#    ssl_protocols TLSv1.2 TLSv1.3;
+#    ssl_ciphers HIGH:!aNULL:!MD5;
+
