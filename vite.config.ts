@@ -23,13 +23,13 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
-    strictPort: true,
-    host: true,
+    port: 5531,
+    host: '0.0.0.0',
+    https: true, // Enable HTTPS
   },
   preview: {
-    port: 3000,
+    port: 5531,
     strictPort: true,
     host: true,
-  },
+  },  
 });

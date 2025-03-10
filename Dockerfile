@@ -37,10 +37,10 @@ USER nodejs
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --spider http://localhost:3000/health || exit 1
+    CMD wget --spider http://localhost:5531/health || exit 1
 
 # Expose port
-EXPOSE 3000
+EXPOSE 5531
 
 # Start the server
 CMD ["node", "server.js"]

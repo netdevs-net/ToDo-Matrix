@@ -5,11 +5,11 @@
 
 server { # managed by Certbot;
 
-    server_name todo.netdev.net;
+    server_name todo.netdevs.net;
     
     # Reverse Proxy for Main App
     location / {
-        proxy_pass http://127.0.0.1:5531;
+        proxy_pass https://127.0.0.1:5531;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
