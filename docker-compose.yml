@@ -4,13 +4,13 @@ services:
   app:
     build: .
     ports:
-      - "5531:5531"
+      - "3000:3000"
     environment:
       - NODE_ENV=production
-      - PORT=5531
+      - PORT=3000
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:5531/health"]
+      test: ["CMD", "wget", "--spider", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3

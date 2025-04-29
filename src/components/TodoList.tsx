@@ -75,7 +75,7 @@ const TodoList: React.FC<TodoListProps> = ({
   return (
     <div 
       ref={setNodeRef}
-      className={`h-full flex flex-col rounded-lg p-4 border ${getBackgroundColor()} ${
+      className={`h-full flex flex-col rounded-lg p-3 md:p-4 border ${getBackgroundColor()} ${
         filteredTodos.length === 0 ? 'relative' : ''
       }`}
     >
@@ -136,7 +136,7 @@ const TodoList: React.FC<TodoListProps> = ({
         </button>
       </form>
 
-      <div className="flex-grow overflow-y-auto">
+      <div className="flex-grow overflow-y-auto px-1">
         {filteredTodos.length > 0 ? (
           <SortableContext items={filteredTodos.map(todo => todo.id)} strategy={verticalListSortingStrategy}>
             {filteredTodos.map((todo) => (
@@ -155,7 +155,7 @@ const TodoList: React.FC<TodoListProps> = ({
           </SortableContext>
         ) : (
           <div className="h-full flex items-center justify-center">
-            <div className={`text-center p-6 border-2 border-dashed rounded-lg w-full ${
+            <div className={`text-center p-4 md:p-6 border-2 border-dashed rounded-lg w-full ${
               darkMode ? 'text-gray-400 border-gray-700' : 'text-gray-500 border-gray-300'
             }`}>
               <p>Drop tasks here</p>

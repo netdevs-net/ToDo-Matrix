@@ -51,14 +51,14 @@ npm run build
 npm start
 ```
 
-The app will be available at http://localhost:5531 (or the port specified in your .env file).
+The app will be available at http://localhost:3000 (or the port specified in your .env file).
 
 ## Environment Variables
 
 You can customize the server port by creating a `.env` file based on the `.env.example` template:
 
 ```
-PORT=5531
+PORT=3000
 ```
 
 ## Technology Stack

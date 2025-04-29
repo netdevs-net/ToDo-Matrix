@@ -24,12 +24,12 @@ export default defineConfig({
   },
   server: {
     port: 5531,
-    host: '0.0.0.0',
-    https: true, // Enable HTTPS
+    strictPort: true,
+    host: true,
   },
   preview: {
     port: 5531,
     strictPort: true,
     host: true,
-  },  
+  },
 });
