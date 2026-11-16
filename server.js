@@ -11,6 +11,19 @@ const __dirname = dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// nginx proxies from loopback and appends the address it saw to
+// X-Forwarded-For. Trusting that one hop makes req.ip the forwarded address
+// instead of 127.0.0.1, so the rate limiter below buckets per client rather
+// than lumping every request behind the proxy into a single counter.
+//
+// Cloudflare sits in front of nginx, so the address we get is the Cloudflare
+// edge, not the end user. That is deliberate: CF-Connecting-IP would name the
+// real client but is forgeable by anything that reaches the origin directly,
+// and trusting a fixed hop count breaks the moment Cloudflare is bypassed.
+// Per-edge buckets are the finest grain we can derive without trusting a
+// header an attacker controls.
+app.set('trust proxy', 'loopback');
+
 // Enable security headers
 app.use(helmet({
   contentSecurityPolicy: {
