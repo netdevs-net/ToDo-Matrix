@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Check, Trash2, GripVertical, Save, X, Clock, Play, Pause, Archive } from 'lucide-react';
+import { Check, Trash2, GripVertical, Save, X, Play, Pause, Archive } from 'lucide-react';
 import { Todo } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -26,12 +26,8 @@ const TodoItem: React.FC<TodoItemProps> = ({
   darkMode
 }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [isEditingTime, setIsEditingTime] = useState(false);
   const [editText, setEditText] = useState(todo.text);
-  const [editTimeHours, setEditTimeHours] = useState(Math.floor(todo.timeSpent / (1000 * 60 * 60)));
-  const [editTimeMinutes, setEditTimeMinutes] = useState(Math.floor((todo.timeSpent % (1000 * 60 * 60)) / (1000 * 60)));
   const editFormRef = useRef<HTMLFormElement>(null);
-  const editTimeFormRef = useRef<HTMLFormElement>(null);
   const textRef = useRef<HTMLParagraphElement>(null);
   const isTracking = !!todo.lastStartTime;
 
@@ -53,16 +49,13 @@ const TodoItem: React.FC<TodoItemProps> = ({
       if (isEditing && editFormRef.current && !editFormRef.current.contains(event.target as Node)) {
         handleEditSubmit();
       }
-      if (isEditingTime && editTimeFormRef.current && !editTimeFormRef.current.contains(event.target as Node)) {
-        handleEditTimeSubmit();
-      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isEditing, isEditingTime, editText, editTimeHours, editTimeMinutes]);
+  }, [isEditing, editText]);
 
   const handleEditSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -72,24 +65,9 @@ const TodoItem: React.FC<TodoItemProps> = ({
     setIsEditing(false);
   };
 
-  const handleEditTimeSubmit = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const newTimeInMs = (editTimeHours * 60 * 60 * 1000) + (editTimeMinutes * 60 * 1000);
-    if (newTimeInMs !== todo.timeSpent) {
-      onEdit(todo.id, todo.text, newTimeInMs);
-    }
-    setIsEditingTime(false);
-  };
-
   const handleCancelEdit = () => {
     setEditText(todo.text);
     setIsEditing(false);
-  };
-
-  const handleCancelEditTime = () => {
-    setEditTimeHours(Math.floor(todo.timeSpent / (1000 * 60 * 60)));
-    setEditTimeMinutes(Math.floor((todo.timeSpent % (1000 * 60 * 60)) / (1000 * 60)));
-    setIsEditingTime(false);
   };
 
   const handleTextClick = (e: React.MouseEvent) => {
@@ -100,13 +78,6 @@ const TodoItem: React.FC<TodoItemProps> = ({
       !e.target.closest('[data-time-section]')
     ) {
       setIsEditing(true);
-    }
-  };
-
-  const handleTimeClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!todo.archived && !isTracking && !todo.completed) {
-      setIsEditingTime(true);
     }
   };
 
@@ -240,11 +211,8 @@ const TodoItem: React.FC<TodoItemProps> = ({
                 <div 
                   data-time-section="true" 
                   className="text-xs text-gray-500 dark:text-gray-400 mt-1"
-                  onClick={handleTimeClick}
                 >
-                  <span className={`cursor-pointer ${!todo.archived && !isTracking && !todo.completed ? 'hover:text-blue-500 dark:hover:text-blue-400' : ''}`}>
-                    {formatTime(todo.timeSpent)}
-                  </span>
+                  <span>{formatTime(todo.timeSpent)}</span>
                 </div>
               </div>
 
