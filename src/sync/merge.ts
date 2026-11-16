@@ -7,10 +7,25 @@ import type { QuadrantConfig, QuadrantType, SyncState, Todo } from '../types';
  */
 export const TOMBSTONE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 
-/** Last-write-wins on a single todo. Ties keep `a`, so the merge is stable. */
+/**
+ * Last-write-wins between two versions of the same thing.
+ *
+ * On a tie the winner is chosen by content, not by which side happens to be
+ * local. Keeping the local side looks harmless and is not: each device keeps
+ * its own copy, neither ever adopts the other, and because the merged result
+ * never matches what the server holds, both push on every sync forever.
+ * Comparing serialized content makes both devices pick the same side, so a tie
+ * converges on the first exchange.
+ */
+function pickNewer<T>(a: T, aAt: number, b: T, bAt: number): T {
+  if (bAt > aAt) return b;
+  if (aAt > bAt) return a;
+  return JSON.stringify(a) <= JSON.stringify(b) ? a : b;
+}
+
+/** Last-write-wins on a single todo, with a content tiebreak. */
 function mergeTodo(a: Todo, b: Todo): Todo {
-  if (b.updatedAt > a.updatedAt) return b;
-  return a;
+  return pickNewer(a, a.updatedAt, b, b.updatedAt);
 }
 
 /**
@@ -103,16 +118,28 @@ export function mergeStates(a: SyncState, b: SyncState): SyncState {
     [...byId.values()].filter((todo) => !(todo.deletedAt && todo.deletedAt < cutoff))
   );
 
-  const settingsFromB = b.meta.settingsUpdatedAt > a.meta.settingsUpdatedAt;
-  const configsFromB = b.meta.quadrantConfigsUpdatedAt > a.meta.quadrantConfigsUpdatedAt;
+  // A tie here is the common case, not a rarity: settingsUpdatedAt is 0 on any
+  // device that has not changed its settings since syncing was added, so two
+  // devices with different settings tie at 0 and would otherwise each keep
+  // their own forever.
+  const settings = pickNewer(
+    a.settings,
+    a.meta.settingsUpdatedAt,
+    b.settings,
+    b.meta.settingsUpdatedAt
+  );
+  const configWinner = pickNewer(
+    a.quadrantConfigs,
+    a.meta.quadrantConfigsUpdatedAt,
+    b.quadrantConfigs,
+    b.meta.quadrantConfigsUpdatedAt
+  );
+  const configLoser = configWinner === a.quadrantConfigs ? b.quadrantConfigs : a.quadrantConfigs;
 
   return {
     todos,
-    settings: settingsFromB ? b.settings : a.settings,
-    quadrantConfigs: mergeQuadrantConfigs(
-      configsFromB ? b.quadrantConfigs : a.quadrantConfigs,
-      configsFromB ? a.quadrantConfigs : b.quadrantConfigs
-    ),
+    settings,
+    quadrantConfigs: mergeQuadrantConfigs(configWinner, configLoser),
     meta: {
       settingsUpdatedAt: Math.max(a.meta.settingsUpdatedAt, b.meta.settingsUpdatedAt),
       quadrantConfigsUpdatedAt: Math.max(
