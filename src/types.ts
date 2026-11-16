@@ -5,6 +5,13 @@ export interface Todo {
   quadrant: QuadrantType;
   createdAt: number;
   updatedAt: number;
+  /**
+   * Rank within the todo's quadrant. Order used to live only in the position
+   * of the array, which meant a merge could not carry it between devices --
+   * each device kept whatever order it happened to have. Storing the rank per
+   * todo lets it travel and be resolved like any other edited field.
+   */
+  position: number;
   deletedAt?: number;
   completedAt?: number;
   timeSpent: number;

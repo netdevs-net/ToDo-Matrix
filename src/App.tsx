@@ -11,7 +11,14 @@ import {
 import { arrayMove } from '@dnd-kit/sortable';
 import { v4 as uuidv4 } from 'uuid';
 import { Todo, QuadrantType, QuadrantConfig, AppSettings, Statistics as StatsType, BackupData, SyncMeta, SyncState } from './types';
-import { purgeTombstones, visibleTodos } from './sync/merge';
+import {
+  ensurePositions,
+  nextPosition,
+  purgeTombstones,
+  reindexQuadrant,
+  sortTodos,
+  visibleTodos,
+} from './sync/merge';
 import { useSync } from './sync/useSync';
 import TodoList from './components/TodoList';
 import Statistics from './components/Statistics';
@@ -89,7 +96,9 @@ function App() {
           lastStartTime: todo.lastStartTime || undefined,
           archived: todo.archived || false,
         }));
-        setTodos(purgeTombstones(updatedTodos));
+        // ensurePositions runs before the sort so todos saved before ordering
+        // was tracked keep the arrangement they already had on screen.
+        setTodos(sortTodos(ensurePositions(purgeTombstones(updatedTodos))));
       } catch (error) {
         console.error('Failed to parse saved todos:', error);
       }
@@ -197,19 +206,22 @@ function App() {
   );
 
   const handleAddTodo = useCallback((text: string, quadrant: string) => {
-    const newTodo: Todo = {
-      id: uuidv4(),
-      text,
-      completed: false,
-      quadrant: quadrant as QuadrantType,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      timeSpent: 0,
-      archived: false,
-      tags: [],
-      comments: []
-    };
-    setTodos((prevTodos) => [...prevTodos, newTodo]);
+    setTodos((prevTodos) => {
+      const newTodo: Todo = {
+        id: uuidv4(),
+        text,
+        completed: false,
+        quadrant: quadrant as QuadrantType,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        position: nextPosition(prevTodos, quadrant as QuadrantType),
+        timeSpent: 0,
+        archived: false,
+        tags: [],
+        comments: []
+      };
+      return [...prevTodos, newTodo];
+    });
   }, []);
 
   const handleToggleComplete = useCallback((id: string) => {
@@ -374,12 +386,18 @@ function App() {
       const now = Date.now();
       // An import is an explicit "this is the truth now", so everything it
       // brings is stamped to beat whatever the server still holds.
+      // A backup written before ordering was tracked carries no position, so
+      // derive one from the order the file lists them in.
       setTodos(
-        data.todos.map((todo) => ({
-          ...todo,
-          updatedAt: now,
-          createdAt: todo.createdAt || now,
-        }))
+        sortTodos(
+          ensurePositions(
+            data.todos.map((todo) => ({
+              ...todo,
+              updatedAt: now,
+              createdAt: todo.createdAt || now,
+            }))
+          )
+        )
       );
       setSettings(data.settings);
       setQuadrantConfigs(data.quadrantConfigs);
@@ -405,10 +423,17 @@ function App() {
       if (quadrantId) {
         const activeTodo = todos.find(todo => todo.id === activeId);
         if (activeTodo && activeTodo.quadrant !== quadrantId) {
-          setTodos(prevTodos => 
-            prevTodos.map(todo => 
+          setTodos(prevTodos =>
+            prevTodos.map(todo =>
               todo.id === activeId
-                ? { ...todo, quadrant: quadrantId, updatedAt: Date.now() }
+                ? {
+                    ...todo,
+                    quadrant: quadrantId,
+                    // Lands at the end of the quadrant it was dropped into;
+                    // a drop on empty space has no neighbour to rank against.
+                    position: nextPosition(prevTodos, quadrantId),
+                    updatedAt: Date.now(),
+                  }
                 : todo
             )
           );
@@ -422,10 +447,15 @@ function App() {
     
     if (!activeTodo || !overTodo || activeTodo.quadrant === overTodo.quadrant) return;
     
-    setTodos(prevTodos => 
-      prevTodos.map(todo => 
+    setTodos(prevTodos =>
+      prevTodos.map(todo =>
         todo.id === activeId
-          ? { ...todo, quadrant: overTodo.quadrant, updatedAt: Date.now() }
+          ? {
+              ...todo,
+              quadrant: overTodo.quadrant,
+              position: nextPosition(prevTodos, overTodo.quadrant),
+              updatedAt: Date.now(),
+            }
           : todo
       )
     );
@@ -449,8 +479,15 @@ function App() {
     setTodos(prevTodos => {
       const activeIndex = prevTodos.findIndex(todo => todo.id === activeId);
       const overIndex = prevTodos.findIndex(todo => todo.id === overId);
-      
-      return arrayMove(prevTodos, activeIndex, overIndex);
+
+      if (activeIndex === -1 || overIndex === -1) return prevTodos;
+
+      const moved = arrayMove(prevTodos, activeIndex, overIndex);
+
+      // arrayMove only rearranges the array. Renumber the quadrant so the new
+      // order is recorded on the todos themselves, otherwise it lives purely
+      // in array position and is lost the moment another device merges.
+      return reindexQuadrant(moved, prevTodos[activeIndex].quadrant);
     });
     
     setActiveId(null);
@@ -462,7 +499,7 @@ function App() {
 
   const getQuadrantTodos = useCallback(
     (quadrantId: QuadrantType) => {
-      return activeTodos.filter((todo) => todo.quadrant === quadrantId);
+      return sortTodos(activeTodos.filter((todo) => todo.quadrant === quadrantId));
     },
     [activeTodos]
   );
