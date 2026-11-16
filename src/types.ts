@@ -4,6 +4,8 @@ export interface Todo {
   completed: boolean;
   quadrant: QuadrantType;
   createdAt: number;
+  updatedAt: number;
+  deletedAt?: number;
   completedAt?: number;
   timeSpent: number;
   lastStartTime?: number;
@@ -77,4 +79,37 @@ export interface BackupData {
   quadrantConfigs: QuadrantConfig[];
   version: string;
   timestamp: number;
+}
+
+export interface SyncMeta {
+  settingsUpdatedAt: number;
+  quadrantConfigsUpdatedAt: number;
+}
+
+export interface SyncState {
+  todos: Todo[];
+  settings: AppSettings;
+  quadrantConfigs: QuadrantConfig[];
+  meta: SyncMeta;
+}
+
+export interface EncryptedBlob {
+  version: number;
+  salt: string;
+  iv: string;
+  ciphertext: string;
+}
+
+export type SyncPhase = 'disabled' | 'idle' | 'syncing' | 'error';
+
+export interface SyncStatus {
+  phase: SyncPhase;
+  lastSyncedAt?: number;
+  error?: string;
+}
+
+export interface SyncConfig {
+  enabled: boolean;
+  endpoint: string;
+  token: string;
 }

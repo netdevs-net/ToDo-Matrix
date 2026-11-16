@@ -26,6 +26,7 @@ RUN npm ci --production
 # Copy built files and server
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server.js .
+COPY --from=builder /app/server ./server
 COPY --from=builder /app/nginx.conf .
 
 # Create non-root user

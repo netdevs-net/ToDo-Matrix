@@ -1,5 +1,6 @@
 import express from 'express';
 import { fileURLToPath } from 'url';
+import { createBlobRouter } from './server/blob.js';
 import { dirname, join } from 'path';
 import compression from 'compression';
 import helmet from 'helmet';
@@ -84,6 +85,15 @@ setInterval(() => {
     }
   }
 }, RATE_LIMIT_WINDOW);
+
+// Sync API. Must be mounted before the SPA fallback below, which otherwise
+// answers every GET with index.html.
+const { router: blobRouter, ensureDataDir } = createBlobRouter({
+  dataDir: process.env.DATA_DIR || join(__dirname, 'data'),
+  token: process.env.SYNC_TOKEN,
+});
+await ensureDataDir();
+app.use('/api/blob', blobRouter);
 
 // SPA fallback - serve index.html for all routes
 app.get('*', (req, res) => {
