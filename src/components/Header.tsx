@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   Sun, Moon, BarChart2, Download, Upload, Archive, Trash2, Save, Share2,
-  Cloud, CloudOff, RefreshCw, AlertCircle,
+  Cloud, CloudOff, RefreshCw, AlertCircle, Eye, EyeOff,
 } from 'lucide-react';
 import { BackupData, Todo, QuadrantConfig, AppSettings, SyncConfig, SyncStatus } from '../types';
 
@@ -51,6 +51,7 @@ const Header: React.FC<HeaderProps> = ({
   const [endpoint, setEndpoint] = useState(syncConfig.endpoint);
   const [token, setToken] = useState(syncConfig.token);
   const [passphrase, setPassphrase] = useState('');
+  const [showToken, setShowToken] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -73,9 +74,12 @@ const Header: React.FC<HeaderProps> = ({
 
   const syncLabel = () => {
     if (!syncConfig.enabled) return 'Sync off';
+    // Errors outrank the locked state. Checking `syncLocked` first meant a
+    // rejected token reported itself as "Passphrase needed", which sends you
+    // off retyping a passphrase that was never the problem.
+    if (syncStatus.phase === 'error') return syncStatus.error || 'Sync error';
     if (syncLocked) return 'Passphrase needed';
     if (syncStatus.phase === 'syncing') return 'Syncing...';
-    if (syncStatus.phase === 'error') return syncStatus.error || 'Sync error';
     if (syncStatus.lastSyncedAt) {
       return `Synced ${new Date(syncStatus.lastSyncedAt).toLocaleTimeString()}`;
     }
@@ -286,14 +290,41 @@ const Header: React.FC<HeaderProps> = ({
                 />
 
                 <label className="block text-xs mb-1 opacity-70">Server token</label>
-                <input
-                  type="password"
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  onBlur={() => handleSaveSync(syncConfig.enabled)}
-                  autoComplete="off"
-                  className="w-full mb-3 px-2 py-1 rounded border bg-transparent border-gray-400 dark:border-gray-600"
-                />
+                {/*
+                  Password managers treat a bare type="password" field as a
+                  login and fill it with a saved site password, silently
+                  replacing the token. autoComplete="off" is widely ignored
+                  for credential fields, so opt out per manager as well, and
+                  let the value be revealed -- a wrong token is otherwise
+                  indistinguishable from a right one behind the dots.
+                */}
+                <div className="relative mb-3">
+                  <input
+                    type={showToken ? 'text' : 'password'}
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    onBlur={() => handleSaveSync(syncConfig.enabled)}
+                    name="todo-matrix-server-token"
+                    autoComplete="new-password"
+                    data-1p-ignore="true"
+                    data-lpignore="true"
+                    data-bwignore="true"
+                    spellCheck={false}
+                    className="w-full px-2 py-1 pr-8 rounded border bg-transparent border-gray-400 dark:border-gray-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowToken((v) => !v)}
+                    title={showToken ? 'Hide token' : 'Show token'}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 p-1 opacity-60 hover:opacity-100"
+                  >
+                    {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+                <p className="text-xs opacity-60 mb-3">
+                  {token.length > 0 && `${token.length} characters. `}
+                  Must match SYNC_TOKEN on the server.
+                </p>
 
                 {syncLocked ? (
                   <>
@@ -303,7 +334,12 @@ const Header: React.FC<HeaderProps> = ({
                       value={passphrase}
                       onChange={(e) => setPassphrase(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') void handleUnlock(); }}
-                      autoComplete="off"
+                      name="todo-matrix-passphrase"
+                      autoComplete="new-password"
+                      data-1p-ignore="true"
+                      data-lpignore="true"
+                      data-bwignore="true"
+                      spellCheck={false}
                       className="w-full mb-1 px-2 py-1 rounded border bg-transparent border-gray-400 dark:border-gray-600"
                     />
                     <p className="text-xs opacity-60 mb-3">
