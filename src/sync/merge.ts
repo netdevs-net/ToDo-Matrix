@@ -88,8 +88,12 @@ export function ensurePositions(todos: Todo[]): Todo[] {
 export function mergeStates(a: SyncState, b: SyncState): SyncState {
   const byId = new Map<string, Todo>();
 
-  for (const todo of a.todos) byId.set(todo.id, todo);
-  for (const todo of b.todos) {
+  // Either side may come from a client that predates `position` -- in
+  // particular a blob already sitting on the server. Derive it from that
+  // side's own array order before merging, otherwise sorting compares
+  // undefined and the sequence is arbitrary.
+  for (const todo of ensurePositions(a.todos)) byId.set(todo.id, todo);
+  for (const todo of ensurePositions(b.todos)) {
     const existing = byId.get(todo.id);
     byId.set(todo.id, existing ? mergeTodo(existing, todo) : todo);
   }
