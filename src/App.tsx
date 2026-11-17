@@ -5,10 +5,12 @@ import {
   DragOverEvent,
   DragStartEvent,
   PointerSensor,
+  KeyboardSensor,
+  closestCenter,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
+import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { v4 as uuidv4 } from 'uuid';
 import { Todo, QuadrantType, QuadrantConfig, AppSettings, Statistics as StatsType, BackupData, SyncMeta, SyncState } from './types';
 import {
@@ -192,11 +194,18 @@ function App() {
     return () => clearInterval(interval);
   }, [isTracking]);
 
+  // Only a PointerSensor was registered, which meant the list could not be
+  // reordered at all without a mouse -- the drag handle took focus and then
+  // did nothing. The keyboard sensor gives it space to pick up, arrow keys to
+  // move, space again to drop.
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
       },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
     })
   );
 
@@ -567,6 +576,11 @@ function App() {
             
             <DndContext
               sensors={sensors}
+              // Sortable lists want closestCenter. The default,
+              // rectIntersection, resolves a keyboard move back onto the item
+              // being dragged -- it announces moving over itself and drops
+              // with over.id === active.id, so nothing reorders.
+              collisionDetection={closestCenter}
               onDragStart={handleDragStart}
               onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}
