@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Check, Trash2, GripVertical, Save, X, Play, Pause, Archive } from 'lucide-react';
@@ -13,7 +13,6 @@ interface TodoItemProps {
   onTrackTime: (id: string, isTracking: boolean) => void;
   onArchive: (id: string) => void;
   darkMode: boolean;
-  enableSharing: boolean;
 }
 
 const TodoItem: React.FC<TodoItemProps> = ({ 
@@ -44,6 +43,16 @@ const TodoItem: React.FC<TodoItemProps> = ({
     transition,
   };
 
+  const handleEditSubmit = useCallback((e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (editText.trim() !== todo.text) {
+      onEdit(todo.id, editText);
+    }
+    setIsEditing(false);
+  }, [editText, todo.text, todo.id, onEdit]);
+
+  // Declared after handleEditSubmit so the dependency can be named: the
+  // callback is read when the effect is set up, not when the click arrives.
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (isEditing && editFormRef.current && !editFormRef.current.contains(event.target as Node)) {
@@ -55,15 +64,7 @@ const TodoItem: React.FC<TodoItemProps> = ({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isEditing, editText]);
-
-  const handleEditSubmit = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (editText.trim() !== todo.text) {
-      onEdit(todo.id, editText);
-    }
-    setIsEditing(false);
-  };
+  }, [isEditing, handleEditSubmit]);
 
   const handleCancelEdit = () => {
     setEditText(todo.text);

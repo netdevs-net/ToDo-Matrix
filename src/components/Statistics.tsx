@@ -10,6 +10,7 @@ import {
   Legend,
   ArcElement,
 } from 'chart.js';
+import type { TooltipItem } from 'chart.js';
 import { Statistics as StatsType, QuadrantType } from '../types';
 
 ChartJS.register(
@@ -116,9 +117,9 @@ const Statistics: React.FC<StatisticsProps> = ({ stats, darkMode }) => {
       },
       tooltip: {
         callbacks: {
-          label: function(context: any) {
+          label: function(context: TooltipItem<'bar'>) {
             const label = context.dataset.label || '';
-            const value = context.raw;
+            const value = context.raw as number;
             if (context.dataset.label === 'Time Spent') {
               return `${label}: ${Math.round(value)} minutes`;
             } else if (context.dataset.label === 'Completion Rate') {

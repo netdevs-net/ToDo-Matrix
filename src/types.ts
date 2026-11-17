@@ -17,15 +17,6 @@ export interface Todo {
   timeSpent: number;
   lastStartTime?: number;
   archived?: boolean;
-  dueDate?: number;
-  estimatedDuration?: number;
-  reminder?: {
-    time: number;
-    type: 'email' | 'push' | 'both';
-  };
-  tags: string[];
-  comments: Comment[];
-  recurrence?: string; // RRULE string
 }
 
 export type QuadrantType = 'urgentImportant' | 'importantNotUrgent' | 'urgentNotImportant' | 'notUrgentNotImportant';
@@ -39,32 +30,10 @@ export interface QuadrantConfig {
   customColor?: string;
 }
 
-export interface Comment {
-  id: string;
-  todoId: string;
-  content: string;
-  createdAt: number;
-  editedAt?: number;
-}
-
-export interface Tag {
-  id: string;
-  name: string;
-  color: string;
-}
-
 export interface AppSettings {
   darkMode: boolean;
   quadrantColors: Record<QuadrantType, string>;
   showArchived: boolean;
-  enableSharing: boolean;
-  notifications?: {
-    email: boolean;
-    push: boolean;
-    desktop: boolean;
-  };
-  timezone?: string;
-  language?: string;
 }
 
 export interface QuadrantStats {

@@ -1,42 +1,29 @@
-version: '3.8'
-
 services:
   app:
     build: .
     ports:
-      - "3000:3000"
+      # Host-local by default: put a TLS terminator in front rather than
+      # exposing this straight to the internet. The sync token travels in an
+      # Authorization header, so plain HTTP over the open internet hands it to
+      # anyone on the path.
+      - "127.0.0.1:3000:3000"
     environment:
       - NODE_ENV=production
       - PORT=3000
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - app-network
-
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
+      # Required. Without it the sync API refuses every request with 503
+      # rather than serving an open read/write endpoint.
+      - SYNC_TOKEN=${SYNC_TOKEN:?set SYNC_TOKEN in .env -- see .env.example}
+      - DATA_DIR=/data
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro
-      - ./dist:/usr/share/nginx/html:ro
-    depends_on:
-      - app
+      # The encrypted blob lives here. Without a volume it would sit inside the
+      # container and every rebuild would silently destroy every synced todo.
+      - todo-data:/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "nginx", "-t"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-    networks:
-      - app-network
 
-networks:
-  app-network:
-    driver: bridge
+volumes:
+  todo-data:

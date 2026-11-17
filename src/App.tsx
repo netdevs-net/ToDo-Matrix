@@ -5,10 +5,12 @@ import {
   DragOverEvent,
   DragStartEvent,
   PointerSensor,
+  KeyboardSensor,
+  closestCenter,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
+import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { v4 as uuidv4 } from 'uuid';
 import { Todo, QuadrantType, QuadrantConfig, AppSettings, Statistics as StatsType, BackupData, SyncMeta, SyncState } from './types';
 import {
@@ -69,7 +71,6 @@ const defaultSettings: AppSettings = {
     notUrgentNotImportant: '',
   },
   showArchived: false,
-  enableSharing: false,
 };
 
 function App() {
@@ -80,14 +81,15 @@ function App() {
   const [showStats, setShowStats] = useState(false);
   const [meta, setMeta] = useState<SyncMeta>({ settingsUpdatedAt: 0, quadrantConfigsUpdatedAt: 0 });
   const [loaded, setLoaded] = useState(false);
-  const [timeTrackingInterval, setTimeTrackingInterval] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const savedTodos = localStorage.getItem(STORAGE_KEY);
     if (savedTodos) {
       try {
-        const parsedTodos = JSON.parse(savedTodos);
-        const updatedTodos = parsedTodos.map((todo: any) => ({
+        // Anything already in localStorage predates some of the fields below,
+        // so it is read as a partial and the gaps are filled in here.
+        const parsedTodos = JSON.parse(savedTodos) as Partial<Todo>[];
+        const updatedTodos = parsedTodos.map((todo) => ({
           ...todo,
           createdAt: todo.createdAt || Date.now(),
           // Pre-sync todos have no updatedAt; treat their creation as the last edit.
@@ -95,7 +97,7 @@ function App() {
           timeSpent: todo.timeSpent || 0,
           lastStartTime: todo.lastStartTime || undefined,
           archived: todo.archived || false,
-        }));
+        })) as Todo[];
         // ensurePositions runs before the sort so todos saved before ordering
         // was tracked keep the arrangement they already had on screen.
         setTodos(sortTodos(ensurePositions(purgeTombstones(updatedTodos))));
@@ -160,48 +162,50 @@ function App() {
     localStorage.setItem(META_KEY, JSON.stringify(meta));
   }, [meta]);
 
-  useEffect(() => {
-    const hasTrackingTasks = todos.some(todo => todo.lastStartTime);
-    
-    if (timeTrackingInterval) {
-      clearInterval(timeTrackingInterval);
-      setTimeTrackingInterval(null);
-    }
-    
-    if (hasTrackingTasks) {
-      const interval = setInterval(() => {
-        const now = Date.now();
-        setTodos(prevTodos => 
-          prevTodos.map(todo => {
-            if (todo.lastStartTime) {
-              const elapsed = now - todo.lastStartTime;
-              return {
-                ...todo,
-                timeSpent: todo.timeSpent + elapsed,
-                lastStartTime: now,
-                updatedAt: now,
-              };
-            }
-            return todo;
-          })
-        );
-      }, 1000);
-      
-      setTimeTrackingInterval(interval);
-    }
-    
-    return () => {
-      if (timeTrackingInterval) {
-        clearInterval(timeTrackingInterval);
-      }
-    };
-  }, [todos]);
+  // Depends on *whether* anything is being tracked, not on the todos
+  // themselves. Keyed on `todos` the effect tore the interval down and built a
+  // new one on every tick, since each tick writes to todos; the handle also
+  // lived in state, so the cleanup closed over the previous render's value and
+  // could clear an interval that had already been replaced.
+  const isTracking = todos.some(todo => todo.lastStartTime);
 
+  useEffect(() => {
+    if (!isTracking) return;
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      // Functional update, so the tick never reads a stale todos array.
+      setTodos(prevTodos =>
+        prevTodos.map(todo => {
+          if (todo.lastStartTime) {
+            const elapsed = now - todo.lastStartTime;
+            return {
+              ...todo,
+              timeSpent: todo.timeSpent + elapsed,
+              lastStartTime: now,
+              updatedAt: now,
+            };
+          }
+          return todo;
+        })
+      );
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isTracking]);
+
+  // Only a PointerSensor was registered, which meant the list could not be
+  // reordered at all without a mouse -- the drag handle took focus and then
+  // did nothing. The keyboard sensor gives it space to pick up, arrow keys to
+  // move, space again to drop.
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
       },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
     })
   );
 
@@ -217,8 +221,6 @@ function App() {
         position: nextPosition(prevTodos, quadrant as QuadrantType),
         timeSpent: 0,
         archived: false,
-        tags: [],
-        comments: []
       };
       return [...prevTodos, newTodo];
     });
@@ -364,14 +366,6 @@ function App() {
     setSettings(prev => ({
       ...prev,
       showArchived: !prev.showArchived,
-    }));
-    touchSettings();
-  }, [touchSettings]);
-
-  const handleToggleSharing = useCallback(() => {
-    setSettings(prev => ({
-      ...prev,
-      enableSharing: !prev.enableSharing,
     }));
     touchSettings();
   }, [touchSettings]);
@@ -563,7 +557,6 @@ function App() {
           onImportData={handleImportData}
           onClearCompleted={handleClearCompleted}
           onToggleShowArchived={handleToggleShowArchived}
-          onToggleSharing={handleToggleSharing}
           syncConfig={sync.config}
           syncStatus={sync.status}
           syncLocked={sync.locked}
@@ -583,6 +576,11 @@ function App() {
             
             <DndContext
               sensors={sensors}
+              // Sortable lists want closestCenter. The default,
+              // rectIntersection, resolves a keyboard move back onto the item
+              // being dragged -- it announces moving over itself and drops
+              // with over.id === active.id, so nothing reorders.
+              collisionDetection={closestCenter}
               onDragStart={handleDragStart}
               onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}
@@ -602,7 +600,6 @@ function App() {
                     onArchive={handleArchiveTodo}
                     darkMode={settings.darkMode}
                     showArchived={settings.showArchived}
-                    enableSharing={settings.enableSharing}
                   />
                 ))}
               </div>
