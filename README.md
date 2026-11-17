@@ -38,7 +38,8 @@ npm run build
 SYNC_TOKEN=$(openssl rand -hex 32) DATA_DIR=/var/lib/todo npm start
 ```
 
-Node 18 or newer. Without `SYNC_TOKEN` the app still works as a local todo
+Node 22 or newer -- the oldest Node still receiving security fixes. The Docker
+image ships Node 26. Without `SYNC_TOKEN` the app still works as a local todo
 list; only sync is disabled.
 
 ### Development
