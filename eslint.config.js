@@ -40,6 +40,18 @@ export default tseslint.config(
     },
   },
 
+  // Browser-console diagnostics: pasted into DevTools, so browser globals and
+  // no module system.
+  {
+    extends: [js.configs.recommended],
+    files: ['scripts/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: globals.browser,
+    },
+  },
+
   // The Express server and the build config: Node, plain JS.
   {
     extends: [js.configs.recommended],
