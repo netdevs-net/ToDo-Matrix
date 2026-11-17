@@ -25,18 +25,27 @@ const PORT = process.env.PORT || 3000;
 app.set('trust proxy', 'loopback');
 
 // Enable security headers
+// The sync key is cached in localStorage so the passphrase is typed once per
+// browser, which makes script injection the way that key gets stolen. The
+// build emits no inline or eval'd script -- index.html loads one module by src
+// -- so the script policy is tight enough to be worth having. Styles still
+// need 'unsafe-inline': React writes element styles directly, and dnd-kit sets
+// a transform on every frame of a drag.
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
+      imgSrc: ["'self'", "data:"],
       connectSrc: ["'self'"],
       fontSrc: ["'self'", "data:"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
       frameSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
     },
   },
   crossOriginEmbedderPolicy: false,

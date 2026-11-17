@@ -1,4 +1,4 @@
-FROM node:20-alpine as builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -21,24 +21,25 @@ WORKDIR /app
 
 # Install production dependencies
 COPY package*.json ./
-RUN npm ci --production
+RUN npm ci --omit=dev
 
 # Copy built files and server
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server.js .
 COPY --from=builder /app/server ./server
-COPY --from=builder /app/nginx.conf .
 
-# Create non-root user
+# Create non-root user. /data is the default DATA_DIR and must be writable by
+# it, or the first sync write fails after the container is already healthy.
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001 && \
-    chown -R nodejs:nodejs /app
+    mkdir -p /data && \
+    chown -R nodejs:nodejs /app /data
 
 USER nodejs
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --spider http://localhost:3000/health || exit 1
+    CMD wget --spider -q http://localhost:3000/health || exit 1
 
 # Expose port
 EXPOSE 3000
