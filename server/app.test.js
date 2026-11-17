@@ -5,6 +5,18 @@ import { join } from 'path';
 import { createApp } from './app.js';
 
 /**
+ * Node 18's fetch keeps connections alive, and server.close() waits for idle
+ * sockets to go away on their own -- so a close here hangs for seconds, long
+ * enough to time a test out. closeAllConnections drops them; it arrived in
+ * Node 18.2, hence the optional call.
+ */
+function shutdown(server) {
+  server.closeAllConnections?.();
+  return new Promise((resolve) => server.close(resolve));
+}
+
+
+/**
  * The real app, assembled exactly as server.js assembles it.
  *
  * The pieces have their own tests; what is checked here is the wiring those
@@ -40,7 +52,7 @@ async function serve({ token = 'test-token', withStatic = true } = {}) {
 afterEach(async () => {
   for (const { server, app } of started.splice(0)) {
     app.stopRateLimiter();
-    await new Promise((r) => server.close(r));
+    await shutdown(server);
   }
   await Promise.all(dirs.splice(0).map((d) => rm(d, { recursive: true, force: true })));
 });

@@ -6,6 +6,18 @@ import express from 'express';
 import { createBlobRouter } from './blob.js';
 
 /**
+ * Node 18's fetch keeps connections alive, and server.close() waits for idle
+ * sockets to go away on their own -- so a close here hangs for seconds, long
+ * enough to time a test out. closeAllConnections drops them; it arrived in
+ * Node 18.2, hence the optional call.
+ */
+function shutdown(server) {
+  server.closeAllConnections?.();
+  return new Promise((resolve) => server.close(resolve));
+}
+
+
+/**
  * The server is the one part a self-hoster exposes to the internet, so these
  * cover the two jobs it actually has: refusing everyone without the token, and
  * never losing a write to a race. Everything else about the data is the
@@ -47,7 +59,7 @@ const put = (version, overrides = {}, token = TOKEN) =>
   });
 
 afterEach(async () => {
-  if (server) await new Promise((resolve) => server.close(resolve));
+  if (server) await shutdown(server);
   if (dataDir) await rm(dataDir, { recursive: true, force: true });
   server = undefined;
   dataDir = undefined;

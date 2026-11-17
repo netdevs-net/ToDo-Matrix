@@ -6,5 +6,6 @@ export default defineConfig({
     // both trees are included explicitly.
     include: ['src/**/*.test.{ts,tsx}', 'server/**/*.test.js'],
     environment: 'node',
+    setupFiles: ['./vitest.setup.ts'],
   },
 });

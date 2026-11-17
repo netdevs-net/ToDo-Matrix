@@ -3,6 +3,18 @@ import express from 'express';
 import { createRateLimiter } from './rate-limit.js';
 
 /**
+ * Node 18's fetch keeps connections alive, and server.close() waits for idle
+ * sockets to go away on their own -- so a close here hangs for seconds, long
+ * enough to time a test out. closeAllConnections drops them; it arrived in
+ * Node 18.2, hence the optional call.
+ */
+function shutdown(server) {
+  server.closeAllConnections?.();
+  return new Promise((resolve) => server.close(resolve));
+}
+
+
+/**
  * The rate limiter and the `trust proxy` setting it depends on shipped
  * together with nothing covering either. The interesting case is not that
  * requests get a 429 -- it is *whose* requests do.
@@ -51,7 +63,7 @@ async function hitMany(base, client, n) {
 
 afterEach(async () => {
   for (const l of limiters.splice(0)) l.stop();
-  await Promise.all(servers.splice(0).map((s) => new Promise((r) => s.close(r))));
+  await Promise.all(servers.splice(0).map((s) => shutdown(s)));
 });
 
 describe('who gets counted', () => {

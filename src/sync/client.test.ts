@@ -9,6 +9,18 @@ import { createBlobRouter } from '../../server/blob.js';
 import type { QuadrantType, SyncConfig, SyncState, Todo } from '../types';
 
 /**
+ * Node 18's fetch keeps connections alive, and server.close() waits for idle
+ * sockets to go away on their own -- so a close here hangs for seconds, long
+ * enough to time a test out. closeAllConnections drops them; it arrived in
+ * Node 18.2, hence the optional call.
+ */
+function shutdown(server: Server): Promise<void> {
+  server.closeAllConnections?.();
+  return new Promise((resolve) => server.close(() => resolve()));
+}
+
+
+/**
  * The whole feature, end to end, against the real Express router rather than a
  * stub: two browsers with the same passphrase, a conflicting write, and the
  * wrong passphrase. The unit tests cover the merge and the crypto separately;
@@ -38,7 +50,7 @@ beforeAll(() => {
 
 beforeEach(async () => {
   store.clear();
-  if (server) await new Promise((r) => server.close(r));
+  if (server) await shutdown(server);
   if (dataDir) await rm(dataDir, { recursive: true, force: true });
 
   dataDir = await mkdtemp(join(tmpdir(), 'client-test-'));
@@ -55,7 +67,7 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
-  if (server) await new Promise((r) => server.close(r));
+  if (server) await shutdown(server);
   if (dataDir) await rm(dataDir, { recursive: true, force: true });
 });
 
@@ -259,6 +271,6 @@ describe('failures a user can actually hit', () => {
       unlock({ ...config, endpoint: `http://127.0.0.1:${port}/api/blob` }, PASSPHRASE)
     ).rejects.toThrow(/not configured/);
 
-    await new Promise((r) => off.close(r));
+    await shutdown(off);
   });
 });
