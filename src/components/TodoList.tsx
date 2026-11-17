@@ -17,7 +17,6 @@ interface TodoListProps {
   onArchive: (id: string) => void;
   darkMode: boolean;
   showArchived: boolean;
-  enableSharing: boolean;
 }
 
 const TodoList: React.FC<TodoListProps> = ({
@@ -32,7 +31,6 @@ const TodoList: React.FC<TodoListProps> = ({
   onArchive,
   darkMode,
   showArchived,
-  enableSharing,
 }) => {
   const [newTodoText, setNewTodoText] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -149,7 +147,6 @@ const TodoList: React.FC<TodoListProps> = ({
                 onTrackTime={onTrackTime}
                 onArchive={onArchive}
                 darkMode={darkMode}
-                enableSharing={enableSharing}
               />
             ))}
           </SortableContext>

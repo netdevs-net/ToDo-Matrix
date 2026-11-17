@@ -4,19 +4,19 @@ export interface Todo {
   completed: boolean;
   quadrant: QuadrantType;
   createdAt: number;
+  updatedAt: number;
+  /**
+   * Rank within the todo's quadrant. Order used to live only in the position
+   * of the array, which meant a merge could not carry it between devices --
+   * each device kept whatever order it happened to have. Storing the rank per
+   * todo lets it travel and be resolved like any other edited field.
+   */
+  position: number;
+  deletedAt?: number;
   completedAt?: number;
   timeSpent: number;
   lastStartTime?: number;
   archived?: boolean;
-  dueDate?: number;
-  estimatedDuration?: number;
-  reminder?: {
-    time: number;
-    type: 'email' | 'push' | 'both';
-  };
-  tags: string[];
-  comments: Comment[];
-  recurrence?: string; // RRULE string
 }
 
 export type QuadrantType = 'urgentImportant' | 'importantNotUrgent' | 'urgentNotImportant' | 'notUrgentNotImportant';
@@ -30,32 +30,10 @@ export interface QuadrantConfig {
   customColor?: string;
 }
 
-export interface Comment {
-  id: string;
-  todoId: string;
-  content: string;
-  createdAt: number;
-  editedAt?: number;
-}
-
-export interface Tag {
-  id: string;
-  name: string;
-  color: string;
-}
-
 export interface AppSettings {
   darkMode: boolean;
   quadrantColors: Record<QuadrantType, string>;
   showArchived: boolean;
-  enableSharing: boolean;
-  notifications?: {
-    email: boolean;
-    push: boolean;
-    desktop: boolean;
-  };
-  timezone?: string;
-  language?: string;
 }
 
 export interface QuadrantStats {
@@ -77,4 +55,37 @@ export interface BackupData {
   quadrantConfigs: QuadrantConfig[];
   version: string;
   timestamp: number;
+}
+
+export interface SyncMeta {
+  settingsUpdatedAt: number;
+  quadrantConfigsUpdatedAt: number;
+}
+
+export interface SyncState {
+  todos: Todo[];
+  settings: AppSettings;
+  quadrantConfigs: QuadrantConfig[];
+  meta: SyncMeta;
+}
+
+export interface EncryptedBlob {
+  version: number;
+  salt: string;
+  iv: string;
+  ciphertext: string;
+}
+
+export type SyncPhase = 'disabled' | 'idle' | 'syncing' | 'error';
+
+export interface SyncStatus {
+  phase: SyncPhase;
+  lastSyncedAt?: number;
+  error?: string;
+}
+
+export interface SyncConfig {
+  enabled: boolean;
+  endpoint: string;
+  token: string;
 }
