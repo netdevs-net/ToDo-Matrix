@@ -108,10 +108,19 @@ export async function syncOnce(
 ): Promise<void> {
   const remote = await readRemote(config, key);
   const merged = remote.state ? mergeStates(local, remote.state) : local;
-  apply(merged);
+
+  const mergedJson = JSON.stringify(merged);
+  // Only hand the app a snapshot that differs from the one it already has.
+  // `merged` is always a freshly built object, so applying an unchanged
+  // snapshot still replaces the app's state objects -- and the effect that
+  // schedules the next sync is keyed on those objects, so it re-arms and the
+  // device syncs again three seconds later, forever. Production did exactly
+  // that: one request every four seconds from an idle tab, around 21,000 a
+  // day, every one of them answered 304.
+  if (mergedJson !== JSON.stringify(local)) apply(merged);
 
   // Nothing to push if the server already holds exactly this.
-  if (remote.state && JSON.stringify(merged) === JSON.stringify(remote.state)) return;
+  if (remote.state && mergedJson === JSON.stringify(remote.state)) return;
 
   const effectiveSalt = remote.salt || salt;
   const first = await putBlob(config, key, effectiveSalt, merged, remote.version);
@@ -121,7 +130,9 @@ export async function syncOnce(
   // retry once rather than starting the round trip again.
   const winner = await decryptBlob(key, first.conflict);
   const remerged = mergeStates(merged, winner);
-  apply(remerged);
+  // Same guard as above: the app only needs this if it differs from what it
+  // is already holding.
+  if (JSON.stringify(remerged) !== JSON.stringify(local)) apply(remerged);
 
   const second = await putBlob(config, key, effectiveSalt, remerged, first.conflict.version);
   if (!second.ok) {

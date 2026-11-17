@@ -274,3 +274,50 @@ describe('failures a user can actually hit', () => {
     await shutdown(off);
   });
 });
+
+describe('an idle device', () => {
+  it('stops calling apply once there is nothing new', async () => {
+    const { syncOnce, unlock } = await client();
+    const a = await unlock(config, PASSPHRASE);
+
+    let current = state([todo('x')]);
+    const apply = (merged: SyncState) => { current = merged; };
+
+    // First sync establishes the blob; after that nothing changes.
+    await syncOnce(config, a.key, a.salt, current, apply);
+
+    let applied = 0;
+    const counting = (merged: SyncState) => { applied += 1; current = merged; };
+    for (let i = 0; i < 5; i += 1) {
+      await syncOnce(config, a.key, a.salt, current, counting);
+    }
+
+    // apply() replaces the app's state objects. React keys the debounce that
+    // schedules the next sync on those objects, so applying an unchanged
+    // snapshot re-arms the timer and the device syncs again forever -- which
+    // is what production did, one request every four seconds with nothing
+    // happening.
+    expect(applied).toBe(0);
+  });
+
+  it('still applies when the other device changed something', async () => {
+    const { syncOnce, unlock } = await client();
+    const a = await unlock(config, PASSPHRASE);
+
+    let deviceA = state([todo('x')]);
+    await syncOnce(config, a.key, a.salt, deviceA, (m) => { deviceA = m; });
+
+    store.clear();
+    const b = await unlock(config, PASSPHRASE);
+    let deviceB = state([todo('x')]);
+    await syncOnce(config, b.key, b.salt, deviceB, (m) => { deviceB = m; });
+    deviceB = { ...deviceB, todos: [...deviceB.todos, todo('from-b', { updatedAt: 9000 })] };
+    await syncOnce(config, b.key, b.salt, deviceB, (m) => { deviceB = m; });
+
+    let applied = 0;
+    await syncOnce(config, a.key, a.salt, deviceA, (m) => { applied += 1; deviceA = m; });
+
+    expect(applied).toBe(1);
+    expect(ids(deviceA)).toEqual(['from-b', 'x']);
+  });
+});
