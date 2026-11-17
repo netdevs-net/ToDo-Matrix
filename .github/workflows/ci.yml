@@ -12,9 +12,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # The floor stated in package.json engines, and current LTS. A
-        # self-hoster running either should get the same result.
-        node: ['18', '22']
+        # The floor promised in package.json engines, and the version the
+        # Docker image ships. Both are supported LTS lines: 22 until
+        # 2027-04-30, 26 until 2029-04-30.
+        node: ['22', '26']
 
     steps:
       - uses: actions/checkout@v4
