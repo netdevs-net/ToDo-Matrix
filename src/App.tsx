@@ -80,14 +80,15 @@ function App() {
   const [showStats, setShowStats] = useState(false);
   const [meta, setMeta] = useState<SyncMeta>({ settingsUpdatedAt: 0, quadrantConfigsUpdatedAt: 0 });
   const [loaded, setLoaded] = useState(false);
-  const [timeTrackingInterval, setTimeTrackingInterval] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const savedTodos = localStorage.getItem(STORAGE_KEY);
     if (savedTodos) {
       try {
-        const parsedTodos = JSON.parse(savedTodos);
-        const updatedTodos = parsedTodos.map((todo: any) => ({
+        // Anything already in localStorage predates some of the fields below,
+        // so it is read as a partial and the gaps are filled in here.
+        const parsedTodos = JSON.parse(savedTodos) as Partial<Todo>[];
+        const updatedTodos = parsedTodos.map((todo) => ({
           ...todo,
           createdAt: todo.createdAt || Date.now(),
           // Pre-sync todos have no updatedAt; treat their creation as the last edit.
@@ -95,7 +96,7 @@ function App() {
           timeSpent: todo.timeSpent || 0,
           lastStartTime: todo.lastStartTime || undefined,
           archived: todo.archived || false,
-        }));
+        })) as Todo[];
         // ensurePositions runs before the sort so todos saved before ordering
         // was tracked keep the arrangement they already had on screen.
         setTodos(sortTodos(ensurePositions(purgeTombstones(updatedTodos))));
@@ -160,42 +161,37 @@ function App() {
     localStorage.setItem(META_KEY, JSON.stringify(meta));
   }, [meta]);
 
+  // Depends on *whether* anything is being tracked, not on the todos
+  // themselves. Keyed on `todos` the effect tore the interval down and built a
+  // new one on every tick, since each tick writes to todos; the handle also
+  // lived in state, so the cleanup closed over the previous render's value and
+  // could clear an interval that had already been replaced.
+  const isTracking = todos.some(todo => todo.lastStartTime);
+
   useEffect(() => {
-    const hasTrackingTasks = todos.some(todo => todo.lastStartTime);
-    
-    if (timeTrackingInterval) {
-      clearInterval(timeTrackingInterval);
-      setTimeTrackingInterval(null);
-    }
-    
-    if (hasTrackingTasks) {
-      const interval = setInterval(() => {
-        const now = Date.now();
-        setTodos(prevTodos => 
-          prevTodos.map(todo => {
-            if (todo.lastStartTime) {
-              const elapsed = now - todo.lastStartTime;
-              return {
-                ...todo,
-                timeSpent: todo.timeSpent + elapsed,
-                lastStartTime: now,
-                updatedAt: now,
-              };
-            }
-            return todo;
-          })
-        );
-      }, 1000);
-      
-      setTimeTrackingInterval(interval);
-    }
-    
-    return () => {
-      if (timeTrackingInterval) {
-        clearInterval(timeTrackingInterval);
-      }
-    };
-  }, [todos]);
+    if (!isTracking) return;
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      // Functional update, so the tick never reads a stale todos array.
+      setTodos(prevTodos =>
+        prevTodos.map(todo => {
+          if (todo.lastStartTime) {
+            const elapsed = now - todo.lastStartTime;
+            return {
+              ...todo,
+              timeSpent: todo.timeSpent + elapsed,
+              lastStartTime: now,
+              updatedAt: now,
+            };
+          }
+          return todo;
+        })
+      );
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isTracking]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
