@@ -33,8 +33,6 @@ function todo(id: string, overrides: Partial<Todo> = {}): Todo {
     updatedAt: 1000,
     position: 0,
     timeSpent: 0,
-    tags: [],
-    comments: [],
     ...overrides,
   };
 }

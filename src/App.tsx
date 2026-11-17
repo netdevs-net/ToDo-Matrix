@@ -69,7 +69,6 @@ const defaultSettings: AppSettings = {
     notUrgentNotImportant: '',
   },
   showArchived: false,
-  enableSharing: false,
 };
 
 function App() {
@@ -213,8 +212,6 @@ function App() {
         position: nextPosition(prevTodos, quadrant as QuadrantType),
         timeSpent: 0,
         archived: false,
-        tags: [],
-        comments: []
       };
       return [...prevTodos, newTodo];
     });
@@ -360,14 +357,6 @@ function App() {
     setSettings(prev => ({
       ...prev,
       showArchived: !prev.showArchived,
-    }));
-    touchSettings();
-  }, [touchSettings]);
-
-  const handleToggleSharing = useCallback(() => {
-    setSettings(prev => ({
-      ...prev,
-      enableSharing: !prev.enableSharing,
     }));
     touchSettings();
   }, [touchSettings]);
@@ -559,7 +548,6 @@ function App() {
           onImportData={handleImportData}
           onClearCompleted={handleClearCompleted}
           onToggleShowArchived={handleToggleShowArchived}
-          onToggleSharing={handleToggleSharing}
           syncConfig={sync.config}
           syncStatus={sync.status}
           syncLocked={sync.locked}
@@ -598,7 +586,6 @@ function App() {
                     onArchive={handleArchiveTodo}
                     darkMode={settings.darkMode}
                     showArchived={settings.showArchived}
-                    enableSharing={settings.enableSharing}
                   />
                 ))}
               </div>

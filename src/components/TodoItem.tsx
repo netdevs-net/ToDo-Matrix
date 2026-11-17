@@ -13,7 +13,6 @@ interface TodoItemProps {
   onTrackTime: (id: string, isTracking: boolean) => void;
   onArchive: (id: string) => void;
   darkMode: boolean;
-  enableSharing: boolean;
 }
 
 const TodoItem: React.FC<TodoItemProps> = ({ 

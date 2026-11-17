@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
-  Sun, Moon, BarChart2, Download, Upload, Archive, Trash2, Save, Share2,
+  Sun, Moon, BarChart2, Download, Upload, Archive, Trash2, Save,
   Cloud, CloudOff, RefreshCw, AlertCircle, Eye, EyeOff,
 } from 'lucide-react';
 import { BackupData, Todo, QuadrantConfig, AppSettings, SyncConfig, SyncStatus } from '../types';
@@ -16,7 +16,6 @@ interface HeaderProps {
   onImportData: (data: BackupData) => void;
   onClearCompleted: () => void;
   onToggleShowArchived: () => void;
-  onToggleSharing: () => void;
   syncConfig: SyncConfig;
   syncStatus: SyncStatus;
   syncLocked: boolean;
@@ -37,7 +36,6 @@ const Header: React.FC<HeaderProps> = ({
   onImportData,
   onClearCompleted,
   onToggleShowArchived,
-  onToggleSharing,
   syncConfig,
   syncStatus,
   syncLocked,
@@ -226,16 +224,6 @@ const Header: React.FC<HeaderProps> = ({
                 >
                   <Archive size={16} className="mr-2" />
                   {settings.showArchived ? 'Hide Archived' : 'Show Archived'}
-                </button>
-                <button
-                  onClick={() => {
-                    onToggleSharing();
-                    setShowMenu(false);
-                  }}
-                  className="flex items-center px-4 py-2 text-sm w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700"
-                >
-                  <Share2 size={16} className="mr-2" />
-                  {settings.enableSharing ? 'Disable Sharing' : 'Enable Sharing'}
                 </button>
                 <button
                   onClick={() => {
