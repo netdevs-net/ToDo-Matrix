@@ -174,7 +174,15 @@ const Header: React.FC<HeaderProps> = ({
   return (
     <header className={`py-4 px-6 ${darkMode ? 'bg-gray-900' : 'bg-white'} shadow-md`}>
       <div className="max-w-7xl mx-auto flex justify-between items-center">
-        <h1 className={`text-2xl md:text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+        <h1 className={`flex items-center gap-2 md:gap-3 whitespace-nowrap text-2xl md:text-3xl font-bold${darkMode ? 'text-white' : 'text-gray-800'}`}>
+          <img
+            src="/icon-192.png"
+            srcSet="/icon-192.png 192w, /icon-512.png 512w"
+            sizes="36px"
+            alt=""
+            aria-hidden="true"
+            className="h-7 w-7 md:h-8 md:w-8 shrink-0 rounded-md"
+          />
           ToDo Matrix
         </h1>
         <div className="flex items-center space-x-4">
