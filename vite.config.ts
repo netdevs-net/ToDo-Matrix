@@ -14,10 +14,12 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
       },
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          dnd: ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
-          charts: ['chart.js', 'react-chartjs-2'],
+        advancedChunks: {
+          groups: [
+            { name: 'vendor', test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+            { name: 'dnd', test: /[\\/]node_modules[\\/]@dnd-kit[\\/]/ },
+            { name: 'charts', test: /[\\/]node_modules[\\/](chart\.js|react-chartjs-2)[\\/]/ },
+          ],
         },
       },
     },
