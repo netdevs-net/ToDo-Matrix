@@ -275,6 +275,97 @@ describe('failures a user can actually hit', () => {
   });
 });
 
+/**
+ * The time tracker runs on one device: the one where the timer was started.
+ * `lastStartTime` is the moment that device last added elapsed time to the
+ * counter, which is a fact about that device and nothing else. Sending it
+ * made the second device adopt a timer it never started, and both then billed
+ * the same wall clock to the same `timeSpent` -- a tracked task on the live
+ * site reached 4.1 hours of time in about 25 minutes.
+ */
+describe('a running timer', () => {
+  /** What the app's tracking interval does once a second. */
+  function tick(s: SyncState, now: number): SyncState {
+    return {
+      ...s,
+      todos: s.todos.map((t) =>
+        t.lastStartTime
+          ? { ...t, timeSpent: t.timeSpent + (now - t.lastStartTime), lastStartTime: now, updatedAt: now }
+          : t
+      ),
+    };
+  }
+
+  it('does not spread to the other device, and bills time once', async () => {
+    const { syncOnce, unlock } = await client();
+    const start = 1_000_000;
+
+    const a = await unlock(config, PASSPHRASE);
+    let deviceA = state([todo('shared', { lastStartTime: start, updatedAt: start })]);
+    await syncOnce(config, a.key, a.salt, deviceA, (m) => { deviceA = m; });
+
+    store.clear();
+    const b = await unlock(config, PASSPHRASE);
+    let deviceB = state([todo('shared', { updatedAt: start })]);
+    await syncOnce(config, b.key, b.salt, deviceB, (m) => { deviceB = m; });
+
+    const seconds = 10;
+    for (let i = 1; i <= seconds; i += 1) {
+      const now = start + i * 1000;
+      deviceA = tick(deviceA, now);
+      await syncOnce(config, a.key, a.salt, deviceA, (m) => { deviceA = m; });
+      deviceB = tick(deviceB, now);
+      await syncOnce(config, b.key, b.salt, deviceB, (m) => { deviceB = m; });
+    }
+
+    const tracked = (s: SyncState) => s.todos.find((t) => t.id === 'shared')!;
+
+    // The device that never started a timer must not be running one.
+    expect(tracked(deviceB).lastStartTime).toBeUndefined();
+
+    // And the counter may not outrun the clock it is measuring.
+    expect(tracked(deviceA).timeSpent).toBeLessThanOrEqual(seconds * 1000);
+    expect(tracked(deviceB).timeSpent).toBeLessThanOrEqual(seconds * 1000);
+  });
+
+  it('does not adopt a timer left in a blob by an older client', async () => {
+    const { syncOnce, unlock } = await client();
+    const start = 3_000_000;
+
+    // Device A is on the old build: it pushes its running timer.
+    const a = await unlock(config, PASSPHRASE);
+    const legacy = state([todo('legacy', { lastStartTime: start, updatedAt: start })]);
+    await syncOnce(config, a.key, a.salt, legacy, () => {});
+
+    store.clear();
+    const b = await unlock(config, PASSPHRASE);
+    let deviceB = state([todo('own', { updatedAt: start })]);
+    await syncOnce(config, b.key, b.salt, deviceB, (m) => { deviceB = m; });
+
+    expect(ids(deviceB)).toEqual(['legacy', 'own']);
+    expect(deviceB.todos.find((t) => t.id === 'legacy')!.lastStartTime).toBeUndefined();
+  });
+
+  it('keeps the local timer running when a merge arrives', async () => {
+    const { syncOnce, unlock } = await client();
+    const start = 2_000_000;
+
+    const a = await unlock(config, PASSPHRASE);
+    let deviceA = state([todo('mine', { lastStartTime: start, updatedAt: start })]);
+    await syncOnce(config, a.key, a.salt, deviceA, (m) => { deviceA = m; });
+
+    store.clear();
+    const b = await unlock(config, PASSPHRASE);
+    let deviceB = state([todo('other', { updatedAt: start + 500 })]);
+    await syncOnce(config, b.key, b.salt, deviceB, (m) => { deviceB = m; });
+
+    // A pulls B's todo. Its own timer has to survive that.
+    await syncOnce(config, a.key, a.salt, deviceA, (m) => { deviceA = m; });
+    expect(ids(deviceA)).toEqual(['mine', 'other']);
+    expect(deviceA.todos.find((t) => t.id === 'mine')!.lastStartTime).toBe(start);
+  });
+});
+
 describe('an idle device', () => {
   it('stops calling apply once there is nothing new', async () => {
     const { syncOnce, unlock } = await client();
