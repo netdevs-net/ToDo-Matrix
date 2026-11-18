@@ -3,8 +3,8 @@ import type { SyncConfig, SyncState, SyncStatus } from '../types';
 import { importKey } from './crypto';
 import { SyncError, syncOnce, unlock as unlockKey } from './client';
 import { clearCachedKey, loadCachedKey, loadConfig, saveConfig } from './storage';
+import { nextSyncDelay } from './debounce';
 
-const DEBOUNCE_MS = 3000;
 const POLL_MS = 60000;
 
 interface Options {
@@ -33,6 +33,8 @@ export function useSync({ state, apply, ready }: Options) {
   const applyRef = useRef(apply);
   const runningRef = useRef(false);
   const pendingRef = useRef(false);
+  /** When the oldest unpushed change arrived, or null if there is none. */
+  const pendingSinceRef = useRef<number | null>(null);
 
   stateRef.current = state;
   applyRef.current = apply;
@@ -92,10 +94,28 @@ export function useSync({ state, apply, ready }: Options) {
     }
   }, [config, ready]);
 
-  // Debounced push whenever the local snapshot changes.
+  // Debounced push whenever the local snapshot changes, with a ceiling on how
+  // long a change may sit unsent.
+  //
+  // Restarting the timer on every change alone is not enough: the time tracker
+  // rewrites the todos once a second while a task's timer runs, which is
+  // faster than the quiet period, so the push was pushed back forever and the
+  // device only synced when the slow poll came round. Measuring the deadline
+  // from the first unsent change puts a floor under that.
   useEffect(() => {
-    if (!config.enabled || locked || !ready) return;
-    const timer = setTimeout(() => void sync(), DEBOUNCE_MS);
+    if (!config.enabled || locked || !ready) {
+      pendingSinceRef.current = null;
+      return;
+    }
+
+    const now = Date.now();
+    if (pendingSinceRef.current === null) pendingSinceRef.current = now;
+
+    const timer = setTimeout(() => {
+      pendingSinceRef.current = null;
+      void sync();
+    }, nextSyncDelay(pendingSinceRef.current, now));
+
     return () => clearTimeout(timer);
   }, [state, config.enabled, locked, ready, sync]);
 
