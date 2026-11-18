@@ -36,11 +36,26 @@ export async function createApp({ dataDir, token, staticDir, isDevelopment = fal
   // src -- so the script policy is tight enough to be worth having. Styles
   // still need 'unsafe-inline': React writes element styles directly, and
   // dnd-kit sets a transform on every frame of a drag.
+  // Cloudflare Web Analytics is injected by the edge, so its beacon has to be
+  // named here or it is blocked. It is one external file from one host; the
+  // beacon reports back to this same origin, so connect-src stays 'self'.
+  // This is a real concession: a script from that host runs with the same
+  // access to localStorage as our own, the cached sync key included. It is
+  // allowed because it is one pinned host under a first party we already
+  // trust to terminate TLS for this site, which is a far smaller surface than
+  // 'unsafe-inline' would be.
+  //
+  // Cloudflare also injects an inline script of its own (the bot-detection
+  // iframe probe). That one stays blocked: its hash changes whenever
+  // Cloudflare rotates the snippet -- it changed between two page loads
+  // minutes apart while this was being investigated -- so pinning a hash
+  // would break silently, and 'unsafe-inline' would undo the point of the
+  // policy. Nothing the app needs depends on it.
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
+        scriptSrc: ["'self'", 'https://static.cloudflareinsights.com'],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:"],
         connectSrc: ["'self'"],
