@@ -5,7 +5,9 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules'] },
+  // `.claude/worktrees` holds checkouts of other branches of this same repo,
+  // so linting it reports another branch's files as errors in this one.
+  { ignores: ['dist', 'node_modules', '.claude'] },
 
   // Browser code.
   {
