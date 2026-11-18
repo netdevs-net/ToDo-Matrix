@@ -101,6 +101,10 @@ describe('security headers', () => {
     const csp = (await fetch(`${base}/`)).headers.get('content-security-policy');
 
     expect(csp).toContain("script-src 'self'");
+    // The analytics beacon is the only outside host allowed to run script.
+    expect(csp.match(/script-src[^;]*/)[0]).toBe(
+      "script-src 'self' https://static.cloudflareinsights.com"
+    );
     expect(csp).not.toContain('unsafe-eval');
     // Styles legitimately need it; scripts must not have it, because the
     // cached sync key is what script injection would steal.
