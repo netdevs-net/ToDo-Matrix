@@ -14,7 +14,8 @@ The server stores that value and a version number, and can never read it.
 - Drag to reorder within a quadrant or move between quadrants, by mouse or
   keyboard
 - Time tracking per task, statistics, JSON export and import
-- Optional end-to-end encrypted sync across browsers and devices
+- Optional end-to-end encrypted sync across browsers and devices, with
+  per-todo merging rather than last-device-wins on the whole list
 - Installable to a phone home screen
 
 ## Running it
@@ -87,6 +88,24 @@ passphrase never leaves the browser.
 - Merging is per todo, last write wins on `updatedAt`, with deletes kept as
   tombstones for 90 days so an offline device cannot resurrect them. A tie is
   broken by content so that both devices reach the same answer.
+
+### When it talks to the server
+
+An edit is pushed 3 seconds after you stop making changes. If something keeps
+changing the state faster than that -- a running task timer rewrites it once a
+second -- the push goes out anyway once the oldest unsent change is 10 seconds
+old, so a busy device still syncs. A visible tab also pulls every 60 seconds,
+and both devices pull when a tab is focused or shown.
+
+An idle device makes no requests at all. If you see steady traffic from a tab
+nobody is touching, that is a bug, not the design.
+
+### Known rough edge: time tracking across devices
+
+A running timer is part of the synced state, so a second device picks up a
+timer it did not start and both devices add elapsed time to the same counter.
+Tracked time on a task can then climb faster than the clock. Track time on one
+device at a time until this is fixed.
 
 ### What this protects you from, and what it doesn't
 
