@@ -39,9 +39,13 @@ npm run build
 SYNC_TOKEN=$(openssl rand -hex 32) DATA_DIR=/var/lib/todo npm start
 ```
 
-Node 22 or newer -- the oldest Node still receiving security fixes. The Docker
-image ships Node 26. Without `SYNC_TOKEN` the app still works as a local todo
-list; only sync is disabled.
+Node 22.12 or newer. Node 22 is the oldest line still receiving security
+fixes, and 22.12 is where the build toolchain starts working: Vite 8 and
+Vitest 5 both refuse to run below it, and Vitest also rules out Node 23 and
+25 (it wants 22.12+, 24, or 26+). The Docker image ships Node 26.
+
+Without `SYNC_TOKEN` the app still works as a local todo list; only sync is
+disabled.
 
 ### Development
 
